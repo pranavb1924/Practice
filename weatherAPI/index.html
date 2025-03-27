@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Weather App</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        input {
+            padding: 5px;
+            margin: 10px 5px;
+            width: 200px;
+        }
+        
+        button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            color: blue;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simple Weather Checker</h1>
+        
+        <!-- Input section -->
+        <div>
+            <input type="text" id="cityInput" placeholder="Enter city name">
+            <button onclick="getWeather()">Get Weather</button>
+        </div>
+        
+        <!-- Status messages -->
+        <div id="status"></div>
+        
+        <!-- Weather data table -->
+        <table id="weatherTable" style="display:none;">
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td>City</td>
+                <td id="city">-</td>
+            </tr>
+            <tr>
+                <td>Country</td>
+                <td id="country">-</td>
+            </tr>
+            <tr>
+                <td>Temperature</td>
+                <td id="temperature">-</td>
+            </tr>
+            <tr>
+                <td>Feels Like</td>
+                <td id="feels_like">-</td>
+            </tr>
+            <tr>
+                <td>Humidity</td>
+                <td id="humidity">-</td>
+            </tr>
+            <tr>
+                <td>Description</td>
+                <td id="description">-</td>
+            </tr>
+            <tr>
+                <td>Wind Speed</td>
+                <td id="wind_speed">-</td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        function getWeather() {
+            const city = document.getElementById('cityInput').value;
+            if (city === '') {
+                alert('Please enter a city name');
+                return;
+            }
+
+            document.getElementById('status').innerHTML = '<div class="loading">Loading...</div>';
+            document.getElementById('weatherTable').style.display = 'none';
+
+            fetch(`http://localhost:5008/weather/${city}`)
+                .then(response => response.json())
+                .then(data => {
+
+                    document.getElementById('status').innerHTML = '';
+                    if (data.error) {
+                        document.getElementById('status').innerHTML = 
+                            '<div class="error">Error: ' + data.error + '</div>';
+                        document.getElementById('weatherTable').style.display = 'none';
+                    } else {
+                        document.getElementById('weatherTable').style.display = 'table';
+                        document.getElementById('city').textContent = data.city;
+                        document.getElementById('country').textContent = data.country;
+                        document.getElementById('temperature').textContent = data.temperature + '°C';
+                        document.getElementById('feels_like').textContent = data.feels_like + '°C';
+                        document.getElementById('humidity').textContent = data.humidity + '%';
+                        document.getElementById('description').textContent = data.description;
+                        document.getElementById('wind_speed').textContent = data.wind_speed + ' m/s';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('status').innerHTML = 
+                        '<div class="error">Error: Could not connect to server. Make sure the Python script is running.</div>';
+                    document.getElementById('weatherTable').style.display = 'none';
+                });
+        }
+        document.getElementById('cityInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                getWeather();
+            }
+        });
+    </script>
+</body>
+</html>
