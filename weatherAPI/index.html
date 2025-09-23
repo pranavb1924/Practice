@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Weather App</title>
+    <title>Weather App - Parallel Processing Demo</title>
     <style>
         body {
             font-family: Arial;
@@ -13,7 +13,7 @@
             background-color: white;
             padding: 20px;
             border-radius: 5px;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
         }
         
@@ -24,19 +24,72 @@
         input {
             padding: 5px;
             margin: 10px 5px;
-            width: 200px;
+            width: 400px;
         }
         
         button {
             padding: 5px 10px;
-            background-color: #4CAF50;
+            margin: 5px;
             color: white;
             border: none;
             cursor: pointer;
         }
         
+        .btn-sequential {
+            background-color: #ff9800;
+        }
+        
+        .btn-parallel {
+            background-color: #2196F3;
+        }
+        
         button:hover {
-            background-color: #45a049;
+            opacity: 0.8;
+        }
+        
+        .comparison {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .processing-box {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .sequential-box {
+            background-color: #fff3e0;
+        }
+        
+        .parallel-box {
+            background-color: #e3f2fd;
+        }
+        
+        .timer {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+        
+        .city-list {
+            margin: 10px 0;
+        }
+        
+        .city-item {
+            padding: 3px;
+            margin: 2px 0;
+        }
+        
+        .processing {
+            background-color: yellow;
+        }
+        
+        .done {
+            background-color: lightgreen;
         }
         
         table {
@@ -56,113 +109,236 @@
             color: white;
         }
         
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-        
         .error {
             color: red;
             margin-top: 10px;
         }
         
-        .loading {
-            color: blue;
-            margin-top: 10px;
+        .result-box {
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Simple Weather Checker</h1>
+        <h1>Weather App - Parallel Processing Demo</h1>
+        <p>This demo shows the difference between sequential (one at a time) and parallel (all at once) processing</p>
         
-        <!-- Input section -->
         <div>
-            <input type="text" id="cityInput" placeholder="Enter city name">
-            <button onclick="getWeather()">Get Weather</button>
+            <input type="text" id="cityInput" placeholder="Enter cities separated by commas" value="London, Paris, Tokyo, New York, Sydney">
+            <br>
+            <button class="btn-sequential" onclick="runSequential()">Run Sequential (Slow)</button>
+            <button class="btn-parallel" onclick="runParallel()">Run Parallel (Fast)</button>
         </div>
         
-        <!-- Status messages -->
+        <div class="comparison" id="comparison" style="display: none;">
+            <div class="processing-box sequential-box">
+                <h3>Sequential Processing</h3>
+                <p>Fetching one city at a time...</p>
+                <div class="timer" id="seqTimer">0.0 seconds</div>
+                <div class="city-list" id="seqCities"></div>
+            </div>
+            
+            <div class="processing-box parallel-box">
+                <h3>Parallel Processing</h3>
+                <p>Fetching all cities at once...</p>
+                <div class="timer" id="parTimer">0.0 seconds</div>
+                <div class="city-list" id="parCities"></div>
+            </div>
+        </div>
+        
+        <div id="speedResult" class="result-box" style="display: none;">
+            <h3>Results:</h3>
+            <p id="timeComparison"></p>
+        </div>
+        
         <div id="status"></div>
         
-        <!-- Weather data table -->
         <table id="weatherTable" style="display:none;">
             <tr>
-                <th>Property</th>
-                <th>Value</th>
+                <th>City</th>
+                <th>Country</th>
+                <th>Temperature</th>
+                <th>Description</th>
+                <th>Humidity</th>
             </tr>
-            <tr>
-                <td>City</td>
-                <td id="city">-</td>
-            </tr>
-            <tr>
-                <td>Country</td>
-                <td id="country">-</td>
-            </tr>
-            <tr>
-                <td>Temperature</td>
-                <td id="temperature">-</td>
-            </tr>
-            <tr>
-                <td>Feels Like</td>
-                <td id="feels_like">-</td>
-            </tr>
-            <tr>
-                <td>Humidity</td>
-                <td id="humidity">-</td>
-            </tr>
-            <tr>
-                <td>Description</td>
-                <td id="description">-</td>
-            </tr>
-            <tr>
-                <td>Wind Speed</td>
-                <td id="wind_speed">-</td>
-            </tr>
+            <tbody id="weatherData"></tbody>
         </table>
     </div>
 
     <script>
-        function getWeather() {
-            const city = document.getElementById('cityInput').value;
-            if (city === '') {
-                alert('Please enter a city name');
+        // Get cities from input
+        function getCities() {
+            const input = document.getElementById('cityInput').value;
+            return input.split(',').map(city => city.trim()).filter(city => city !== '');
+        }
+        
+        // Sequential processing (one by one)
+        async function runSequential() {
+            const cities = getCities();
+            if (cities.length === 0) {
+                alert('Please enter at least one city');
                 return;
             }
-
-            document.getElementById('status').innerHTML = '<div class="loading">Loading...</div>';
+            
+            // Reset display
+            document.getElementById('comparison').style.display = 'flex';
+            document.getElementById('speedResult').style.display = 'none';
             document.getElementById('weatherTable').style.display = 'none';
-
-            fetch(`http://localhost:5008/weather/${city}`)
-                .then(response => response.json())
-                .then(data => {
-
-                    document.getElementById('status').innerHTML = '';
-                    if (data.error) {
-                        document.getElementById('status').innerHTML = 
-                            '<div class="error">Error: ' + data.error + '</div>';
-                        document.getElementById('weatherTable').style.display = 'none';
+            document.getElementById('parCities').innerHTML = '';
+            document.getElementById('parTimer').textContent = '0.0 seconds';
+            
+            // Show cities list
+            const seqCitiesDiv = document.getElementById('seqCities');
+            seqCitiesDiv.innerHTML = cities.map(city => 
+                `<div class="city-item" id="seq-${city.replace(/\s/g, '')}">${city}: waiting...</div>`
+            ).join('');
+            
+            const startTime = Date.now();
+            const results = [];
+            
+            // Update timer
+            const timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('seqTimer').textContent = `${elapsed} seconds`;
+            }, 100);
+            
+            // Process each city one by one
+            for (let i = 0; i < cities.length; i++) {
+                const city = cities[i];
+                const cityDiv = document.getElementById(`seq-${city.replace(/\s/g, '')}`);
+                
+                cityDiv.textContent = `${city}: fetching...`;
+                cityDiv.className = 'city-item processing';
+                
+                try {
+                    const response = await fetch(`http://localhost:5008/weather/${city}`);
+                    const data = await response.json();
+                    
+                    if (!data.error) {
+                        results.push(data);
+                        cityDiv.textContent = `${city}: ${data.temperature}°C`;
+                        cityDiv.className = 'city-item done';
                     } else {
-                        document.getElementById('weatherTable').style.display = 'table';
-                        document.getElementById('city').textContent = data.city;
-                        document.getElementById('country').textContent = data.country;
-                        document.getElementById('temperature').textContent = data.temperature + '°C';
-                        document.getElementById('feels_like').textContent = data.feels_like + '°C';
-                        document.getElementById('humidity').textContent = data.humidity + '%';
-                        document.getElementById('description').textContent = data.description;
-                        document.getElementById('wind_speed').textContent = data.wind_speed + ' m/s';
+                        cityDiv.textContent = `${city}: error`;
                     }
-                })
-                .catch(error => {
-                    document.getElementById('status').innerHTML = 
-                        '<div class="error">Error: Could not connect to server. Make sure the Python script is running.</div>';
-                    document.getElementById('weatherTable').style.display = 'none';
-                });
-        }
-        document.getElementById('cityInput').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                getWeather();
+                } catch (error) {
+                    cityDiv.textContent = `${city}: failed`;
+                }
             }
-        });
+            
+            clearInterval(timerInterval);
+            const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            document.getElementById('seqTimer').textContent = `${totalTime} seconds`;
+            
+            displayResults(results);
+            compareWithParallel(totalTime, 'sequential');
+        }
+        
+        // Parallel processing (all at once)
+        async function runParallel() {
+            const cities = getCities();
+            if (cities.length === 0) {
+                alert('Please enter at least one city');
+                return;
+            }
+            
+            // Reset display
+            document.getElementById('comparison').style.display = 'flex';
+            document.getElementById('speedResult').style.display = 'none';
+            document.getElementById('weatherTable').style.display = 'none';
+            document.getElementById('seqCities').innerHTML = '';
+            document.getElementById('seqTimer').textContent = '0.0 seconds';
+            
+            // Show cities list
+            const parCitiesDiv = document.getElementById('parCities');
+            parCitiesDiv.innerHTML = cities.map(city => 
+                `<div class="city-item processing" id="par-${city.replace(/\s/g, '')}">${city}: fetching...</div>`
+            ).join('');
+            
+            const startTime = Date.now();
+            
+            // Update timer
+            const timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('parTimer').textContent = `${elapsed} seconds`;
+            }, 100);
+            
+            // Process all cities at once using Promise.all
+            const promises = cities.map(city => 
+                fetch(`http://localhost:5008/weather/${city}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const cityDiv = document.getElementById(`par-${city.replace(/\s/g, '')}`);
+                        if (!data.error) {
+                            cityDiv.textContent = `${city}: ${data.temperature}°C`;
+                            cityDiv.className = 'city-item done';
+                            return data;
+                        } else {
+                            cityDiv.textContent = `${city}: error`;
+                            return null;
+                        }
+                    })
+                    .catch(error => {
+                        const cityDiv = document.getElementById(`par-${city.replace(/\s/g, '')}`);
+                        cityDiv.textContent = `${city}: failed`;
+                        return null;
+                    })
+            );
+            
+            const results = await Promise.all(promises);
+            const validResults = results.filter(r => r !== null);
+            
+            clearInterval(timerInterval);
+            const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            document.getElementById('parTimer').textContent = `${totalTime} seconds`;
+            
+            displayResults(validResults);
+            compareWithParallel(totalTime, 'parallel');
+        }
+        
+        // Display weather results in table
+        function displayResults(results) {
+            if (results.length === 0) return;
+            
+            const tableBody = document.getElementById('weatherData');
+            tableBody.innerHTML = results.map(data => `
+                <tr>
+                    <td>${data.city}</td>
+                    <td>${data.country}</td>
+                    <td>${data.temperature}°C</td>
+                    <td>${data.description}</td>
+                    <td>${data.humidity}%</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('weatherTable').style.display = 'table';
+        }
+        
+        // Compare times
+        let sequentialTime = null;
+        let parallelTime = null;
+        
+        function compareWithParallel(time, type) {
+            if (type === 'sequential') {
+                sequentialTime = parseFloat(time);
+            } else {
+                parallelTime = parseFloat(time);
+            }
+            
+            if (sequentialTime && parallelTime) {
+                const speedup = (sequentialTime / parallelTime).toFixed(1);
+                document.getElementById('speedResult').style.display = 'block';
+                document.getElementById('timeComparison').innerHTML = `
+                    <strong>Sequential:</strong> ${sequentialTime} seconds<br>
+                    <strong>Parallel:</strong> ${parallelTime} seconds<br>
+                    <strong>Parallel is ${speedup}x faster!</strong>
+                `;
+            }
+        }
     </script>
 </body>
 </html>

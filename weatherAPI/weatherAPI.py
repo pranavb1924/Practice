@@ -43,11 +43,15 @@ def get_weather(city_name):
     except Exception as e:
         return {'error': str(e)}
 
+#Sequential Processing:
+
 @app.route('/weather/<city>')
 def weather_api(city):
 
     weather_data = get_weather(city)
     return jsonify(weather_data)
+
+#Parallel Processing:
 
 def get_weather_multiple_cities():
     from concurrent.futures import ThreadPoolExecutor
