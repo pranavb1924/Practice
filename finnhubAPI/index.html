@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Data Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .search-box {
+            text-align: center;
+            margin: 20px 0;
+        }
+        input {
+            padding: 10px;
+            width: 200px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .error {
+            color: red;
+            text-align: center;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .positive {
+            color: green;
+        }
+        .negative {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Data Viewer</h1>
+        
+        <div class="search-box">
+            <input type="text" id="stockInput" placeholder="Enter stock symbol (e.g., AAPL)">
+            <button onclick="fetchStock()">Search</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display:none;">Loading...</div>
+        <div id="error" class="error"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function fetchStock() {
+            const symbol = document.getElementById('stockInput').value;
+            if (!symbol) return;
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').innerHTML = '';
+            document.getElementById('results').innerHTML = '';
+            
+            try {
+                const response = await fetch(`http://localhost:5000/stock/${symbol}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayData(data);
+            } catch (error) {
+                document.getElementById('error').innerHTML = error.message;
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayData(data) {
+            let html = '';
+            
+            // Company Info
+            if (data.company) {
+                html += '<h2>Company Information</h2>';
+                html += '<table>';
+                html += `<tr><th>Company</th><td>${data.company.name}</td></tr>`;
+                html += `<tr><th>Symbol</th><td>${data.company.ticker}</td></tr>`;
+                html += `<tr><th>Industry</th><td>${data.company.industry}</td></tr>`;
+                html += `<tr><th>Country</th><td>${data.company.country}</td></tr>`;
+                html += `<tr><th>Currency</th><td>${data.company.currency}</td></tr>`;
+                html += `<tr><th>Exchange</th><td>${data.company.exchange}</td></tr>`;
+                if (data.company.weburl && data.company.weburl !== '') {
+                    html += `<tr><th>Website</th><td><a href="${data.company.weburl}" target="_blank">${data.company.weburl}</a></td></tr>`;
+                }
+                html += '</table>';
+            }
+            
+            // Stock Quote
+            if (data.quote) {
+                const changeClass = data.quote.change >= 0 ? 'positive' : 'negative';
+                html += '<h2>Current Price</h2>';
+                html += '<table>';
+                html += `<tr><th>Current Price</th><td>$${data.quote.current_price.toFixed(2)}</td></tr>`;
+                html += `<tr><th>Change</th><td class="${changeClass}">${data.quote.change >= 0 ? '+' : ''}${data.quote.change.toFixed(2)} (${data.quote.percent_change.toFixed(2)}%)</td></tr>`;
+                html += `<tr><th>Open</th><td>$${data.quote.open.toFixed(2)}</td></tr>`;
+                html += `<tr><th>High</th><td>$${data.quote.high.toFixed(2)}</td></tr>`;
+                html += `<tr><th>Low</th><td>$${data.quote.low.toFixed(2)}</td></tr>`;
+                html += `<tr><th>Previous Close</th><td>$${data.quote.previous_close.toFixed(2)}</td></tr>`;
+                html += '</table>';
+            }
+            
+            // Key Metrics
+            if (data.metrics) {
+                html += '<h2>Key Metrics</h2>';
+                html += '<table>';
+                html += `<tr><th>52 Week High</th><td>${data.metrics['52_week_high'] !== 'N/A' ? '$' + parseFloat(data.metrics['52_week_high']).toFixed(2) : 'N/A'}</td></tr>`;
+                html += `<tr><th>52 Week Low</th><td>${data.metrics['52_week_low'] !== 'N/A' ? '$' + parseFloat(data.metrics['52_week_low']).toFixed(2) : 'N/A'}</td></tr>`;
+                html += `<tr><th>Market Cap</th><td>${data.metrics.market_cap !== 'N/A' ? '$' + (data.metrics.market_cap * 1000000).toLocaleString() : 'N/A'}</td></tr>`;
+                html += `<tr><th>P/E Ratio</th><td>${data.metrics.pe_ratio !== 'N/A' ? parseFloat(data.metrics.pe_ratio).toFixed(2) : 'N/A'}</td></tr>`;
+                html += `<tr><th>Dividend Yield</th><td>${data.metrics.dividend_yield !== 'N/A' ? parseFloat(data.metrics.dividend_yield).toFixed(2) + '%' : 'N/A'}</td></tr>`;
+                html += `<tr><th>Beta</th><td>${data.metrics.beta !== 'N/A' ? parseFloat(data.metrics.beta).toFixed(2) : 'N/A'}</td></tr>`;
+                html += '</table>';
+            }
+            
+            document.getElementById('results').innerHTML = html;
+        }
+
+        // Allow Enter key to trigger search
+        document.getElementById('stockInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchStock();
+            }
+        });
+    </script>
+</body>
+</html>
